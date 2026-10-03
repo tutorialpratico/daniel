@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estúdio Faber — Cadeia de Efeitos pt-BR</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#171c26; --panel2:#1e2532; --txt:#e8ecf3;
+    --mut:#8b96a8; --acc:#4f8cff; --acc2:#39d98a; --red:#ff5c5c;
+    --border:#2a3345;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:24px}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:1.5rem;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:.9rem;margin-bottom:24px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  button{cursor:pointer;border:none;border-radius:10px;padding:12px 22px;font-size:.95rem;font-weight:600;transition:.15s}
+  .btn-rec{background:var(--acc);color:#fff}
+  .btn-rec:hover{background:#3d7bf0}
+  .btn-stop{background:var(--red);color:#fff;display:none}
+  .btn-dl{background:var(--acc2);color:#0b2318;display:none;text-decoration:none;text-align:center}
+  .btn-preset{background:var(--panel2);color:var(--txt);border:1px solid var(--border)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .timer{font-variant-numeric:tabular-nums;font-size:1.1rem;color:var(--mut);min-width:70px}
+  .warn{color:#f0b429;font-size:.82rem;margin-top:10px}
+  audio{width:100%;margin-top:14px}
+  details summary{cursor:pointer;font-weight:600;margin-bottom:14px;color:var(--acc)}
+  .fx{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .fx h3{font-size:.92rem;margin-bottom:4px}
+  .fx .desc{color:var(--mut);font-size:.78rem;margin-bottom:10px}
+  .ctrl{display:grid;grid-template-columns:170px 1fr 70px;gap:12px;align-items:center;margin-top:8px}
+  .ctrl label{font-size:.83rem;color:var(--mut)}
+  .ctrl output{font-size:.83rem;text-align:right;font-variant-numeric:tabular-nums;color:var(--txt)}
+  input[type=range]{width:100%;accent-color:var(--acc);height:4px}
+  .tog{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--mut);cursor:pointer}
+  .tog input{accent-color:var(--acc2);width:16px;height:16px}
+  .status{font-size:.85rem;color:var(--mut)}
+  .err{color:var(--red);font-size:.85rem;margin-top:8px;display:none}
+  footer{color:var(--mut);font-size:.78rem;text-align:center;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎙️ Estúdio Faber</h1>
+  <p class="sub">Cadeia de efeitos pt-BR direto no navegador — grave, processe e baixe em WAV</p>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn-rec" id="btnRec">● Gravar</button>
+      <button class="btn-stop" id="btnStop">■ Parar</button>
+      <span class="timer" id="timer">00:00</span>
+      <label class="tog"><input type="checkbox" id="monitor"> Monitor ao vivo (use fones!)</label>
+    </div>
+    <div class="warn" id="warn" style="display:none">⚠️ Para evitar realimentação (microfonia), ative o monitor apenas usando fones de ouvido.</div>
+    <p class="status" id="status">Pronto para gravar.</p>
+    <p class="err" id="err"></p>
+    <audio id="player" controls style="display:none"></audio>
+    <div class="row" style="margin-top:14px">
+      <a class="btn-dl" id="btnDl" download="voz-processada.wav">⬇ Baixar WAV</a>
+      <label class="tog"><input type="checkbox" id="normalize" checked> Normalizar para −1 dBFS no export</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <details open>
+      <summary>⚙️ Configuração da cadeia de efeitos</summary>
+      <button class="btn-preset" id="btnPreset" style="margin-bottom:14px">↺ Preset "Faber" (recomendado)</button>
+
+      <div class="fx">
+        <h3>1. Redução de Ruído — Expansor/Gate</h3>
+        <p class="desc">Atenua o que está abaixo do limiar (silêncios, chiar de fundo). Obs.: um gate não é a redução espectral por perfil do Audacity — ele abaixa o volume do ruído em vez de removê-lo.</p>
+        <div class="ctrl"><label>Limiar (threshold)</label><input type="range" id="gateThr" min="-70" max="-30" step="1" value="-50"><output id="gateThrV">−50 dB</output></div>
+        <div class="ctrl"><label>Proporção (ratio)</label><input type="range" id="gateRatio" min="1" max="5" step="0.1" value="2"><output id="gateRatioV">2.0:1</output></div>
+      </div>
+
+      <div class="fx">
+        <h3>2. Equalização (EQ) — o segredo do timbre</h3>
+        <div class="ctrl"><label>Corte de graves (HPF)</label><input type="range" id="hpf" min="40" max="200" step="1" value="90"><output id="hpfV">90 Hz</output></div>
+        <div class="ctrl"><label>Atenuação 300 Hz (caixão/nasal)</label><input type="range" id="cut300" min="-8" max="0" step="0.5" value="-2.5"><output id="cut300V">−2.5 dB</output></div>
+        <div class="ctrl"><label>Presença 4 kHz (articulação)</label><input type="range" id="pres4k" min="0" max="6" step="0.5" value="2.5"><output id="pres4kV">+2.5 dB</output></div>
+        <div class="ctrl"><label>Brilho (High Shelf 10 kHz)</label><input type="range" id="air" min="0" max="6" step="0.5" value="2"><output id="airV">+2.0 dB</output></div>
+      </div>
+
+      <div class="fx">
+        <h3>3. Compressor</h3>
+        <div class="ctrl"><label>Limiar (threshold)</label><input type="range" id="cThr" min="-40" max="0" step="1" value="-18"><output id="cThrV">−18 dB</output></div>
+        <div class="ctrl"><label>Proporção (ratio)</label><input type="range" id="cRatio" min="1" max="8" step="0.5" value="3.5"><output id="cRatioV">3.5:1</output></div>
+        <div class="ctrl"><label>Ataque (ms)</label><input type="range" id="cAtk" min="1" max="50" step="1" value="7"><output id="cAtkV">7 ms</output></div>
+        <div class="ctrl"><label>Liberação (ms)</label><input type="range" id="cRel" min="10" max="400" step="5" value="120"><output id="cRelV">120 ms</output></div>
+      </div>
+
+      <div class="fx">
+        <h3>4. De-Esser (sibilâncias S/X)</h3>
+        <div class="ctrl"><label>Frequência central</label><input type="range" id="dsFreq" min="4000" max="9000" step="100" value="6500"><output id="dsFreqV">6500 Hz</output></div>
+        <div class="ctrl"><label>Limiar (sensibilidade)</label><input type="range" id="dsThr" min="10" max="200" step="5" value="60"><output id="dsThrV">0.06</output></div>
+        <div class="ctrl"><label>Redução (ratio)</label><input type="range" id="dsRatio" min="1" max="8" step="0.5" value="3"><output id="dsRatioV">3.0:1</output></div>
+      </div>
+
+      <div class="fx">
+        <h3>5. Limitador / Normalizador</h3>
+        <p class="desc">Teto fixo em −1.5 dBFS com ratio 20:1 e ataque de 2 ms — impede clipping em qualquer dispositivo.</p>
+        <div class="ctrl"><label>Teto (ceiling)</label><input type="range" id="limCeil" min="-6" max="0" step="0.5" value="-1.5" disabled><output>−1.5 dB</output></div>
+      </div>
+    </details>
+  </div>
+
+  <footer>Funciona offline após o primeiro carregamento · Requer microfone (permissão) · Melhor no Chrome/Edge · O arquivo WAV é gravado já processado pela cadeia completa</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const dbToLin = db => Math.pow(10, db/20);
+const linToDb = v => 20*Math.log10(Math.max(v,1e-7));
+
+// ---------- AudioWorklets (como Blob, p/ arquivo único) ----------
+const worklets = {};
+
+function makeWorkletURL(code){
+  return URL.createObjectURL(new Blob([code], {type:'application/javascript'}));
+}
+
+// --- Gate / Expansor ---
+const GATE_SRC = `
+class Gate extends AudioWorkletProcessor {
+  static get parameterDescriptors(){ return [
+    {name:'threshold', defaultValue:-50},
+    {name:'ratio', defaultValue:2}
+  ];}
+  constructor(){ super(); this.env = 0; this.g = 1; }
+  process(inp, out, params){
+    const i = inp[0], o = out[0];
+    if(!i || !i[0]) return true;
+    const thr = dbToLinP(params.threshold[0]), ratio = params.ratio[0];
+    const atk = Math.exp(-1/(0.005*sampleRate)), rel = Math.exp(-1/(0.15*sampleRate));
+    for(let s=0;s<i[0].length;s++){
+      let x = i[0][s];
+      this.env = Math.max(Math.abs(x), this.env*0.9995);
+      let target = this.env >= thr ? 1 : Math.pow(this.env/thr, 1/ratio);
+      this.g = target > this.g ? this.g*atk + target*(1-atk) : this.g*rel + target*(1-rel);
+      for(let c=0;c<o.length;c++){ o[c][s] = (i[c]?i[c][s]:x)*this.g; }
+    }
+    return true;
+  }
+  function dbToLinP(db){ return Math.pow(10, db/20); }
+}
+registerProcessor('gate', Gate);
+`;
+
+// --- De-Esser (banda 5-8k com seguidor de envelope) ---
+const DEESSER_SRC = `
+class Deesser extends AudioWorkletProcessor {
+  static get parameterDescriptors(){ return [
+    {name:'freq', defaultValue:6500},
+    {name:'threshold', defaultValue:0.06},
+    {name:'ratio', defaultValue:3}
+  ];}
+  constructor(){ super(); this.x1=0;this.x2=0;this.y1=0;this.y2=0;this.env=0;this.g=1;this.fc=0;this.coef=null; }
+  bandpass(x, f0){
+    if(!this.coef || Math.abs(f0-this.fc)>1){
+      this.fc=f0;
+      const w0=2*Math.PI*f0/sampleRate, Q=1.2, alpha=Math.sin(w0)/(2*Q);
+      const b0=alpha, b1=0, b2=-alpha, a0=1+alpha, a1=-2*Math.cos(w0), a2=1-alpha;
+      this.coef={b0:b0/a0,b2:b2/a0,a1:a1/a0,a2:a2/a0};
+    }
+    const c=this.coef;
+    const y=c.b0*x + c.b2*this.x2 - c.a1*this.y1 - c.a2*this.y2;
+    this.x2=this.x1; this.x1=x; this.y2=this.y1; this.y1=y;
+    return y;
+  }
+  process(inp,out,params){
+    const i=inp[0], o=out[0];
+    if(!i||!i[0]) return true;
+    const f0=params.freq[0], thr=params.threshold[0], ratio=params.ratio[0];
+    const atk=Math.exp(-1/(0.002*sampleRate)), rel=Math.exp(-1/(0.08*sampleRate));
+    for(let s=0;s<i[0].length;s++){
+      const x=i[0][s];
+      const band=this.bandpass(x,f0);
+      this.env=Math.max(Math.abs(band), this.env*0.999);
+      let target=1;
+      if(this.env>thr) target = thr + (this.env-thr)/ratio;
+      target = Math.min(1, target/Math.max(this.env,1e-7));
+      this.g = target<this.g ? this.g*atk+target*(1-atk) : this.g*rel+target*(1-rel);
+      for(let c=0;c<o.length;c++){ o[c][s]=(i[c]?i[c][s]:x)*this.g; }
+    }
+    return true;
+  }
+}
+registerProcessor('deesser', Deesser);
+`;
+
+// --- Gravador PCM (para exportar WAV garantido) ---
+const RECORDER_SRC = `
+class Rec extends AudioWorkletProcessor {
+  constructor(){ super(); this.buf=[]; this.on=false;
+    this.port.onmessage=e=>{ if(e.data==='start'){this.buf=[];this.on=true;} if(e.data==='stop'){this.on=false; this.port.postMessage({type:'data', buf:this.buf});} };
+  }
+  process(inp,out){
+    if(this.on && inp[0] && inp[0][0]){
+      const ch0=inp[0][0];
+      this.buf.push(new Float32Array(ch0));
+    }
+    return true;
+  }
+}
+registerProcessor('recorder', Rec);
+`;
+
+// ---------- Áudio ----------
+let ctx, stream, source, nodes = {}, recording=false, t0, timerInt, monitorOn=false;
+
+async function initAudio(){
+  if(ctx) return;
+  ctx = new (window.AudioContext||window.webkitAudioContext)();
+  stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
+  await ctx.audioWorklet.addModule(makeWorkletURL(GATE_SRC));
+  await ctx.audioWorklet.addModule(makeWorkletURL(DEESSER_SRC));
+  await ctx.audioWorklet.addModule(makeWorkletURL(RECORDER_SRC));
+
+  source = ctx.createMediaStreamSource(stream);
+  nodes.gate = new AudioWorkletNode(ctx,'gate');
+  nodes.hpf = ctx.createBiquadFilter(); nodes.hpf.type='highpass'; nodes.hpf.frequency.value=90;
+  nodes.cut = ctx.createBiquadFilter(); nodes.cut.type='peaking'; nodes.cut.frequency.value=300; nodes.cut.Q.value=1.1; nodes.cut.gain.value=-2.5;
+  nodes.pres = ctx.createBiquadFilter(); nodes.pres.type='peaking'; nodes.pres.frequency.value=4000; nodes.pres.Q.value=0.9; nodes.pres.gain.value=2.5;
+  nodes.air = ctx.createBiquadFilter(); nodes.air.type='highshelf'; nodes.air.frequency.value=10000; nodes.air.gain.value=2;
+  nodes.comp = ctx.createDynamicsCompressor();
+  nodes.deesser = new AudioWorkletNode(ctx,'deesser');
+  nodes.lim = ctx.createDynamicsCompressor();
+  nodes.lim.threshold.value=dbToLin(-1.5) ? -1.5 : -1.5;
+  nodes.lim.knee.value=0; nodes.lim.ratio.value=20; nodes.lim.attack.value=0.002; nodes.lim.release.value=0.25;
+  nodes.rec = new AudioWorkletNode(ctx,'recorder');
+
+  source.connect(nodes.gate).connect(nodes.hpf).connect(nodes.cut).connect(nodes.pres).connect(nodes.air).connect(nodes.comp).connect(nodes.deesser).connect(nodes.lim);
+  nodes.lim.connect(nodes.rec);
+  applyAll();
+}
+
+nodes = nodes || {};
+function applyAll(){
+  if(!ctx) return;
+  nodes.gate.parameters.get('threshold').value = +$('gateThr').value;
+  nodes.gate.parameters.get('ratio').value = +$('gateRatio').value;
+  nodes.hpf.frequency.value = +$('hpf').value;
+  nodes.cut.gain.value = +$('cut300').value;
+  nodes.pres.gain.value = +$('pres4k').value;
+  nodes.air.gain.value = +$('air').value;
+  nodes.comp.threshold.value = +$('cThr').value;
+  nodes.comp.ratio.value = +$('cRatio').value;
+  nodes.comp.attack.value = +$('cAtk').value/1000;
+  nodes.comp.release.value = +$('cRel').value/1000;
+  nodes.deesser.parameters.get('freq').value = +$('dsFreq').value;
+  nodes.deesser.parameters.get('threshold').value = +$('dsThr').value/1000;
+  nodes.deesser.parameters.get('ratio').value = +$('dsRatio').value;
+}
+
+// ---------- Sliders → outputs ----------
+const fmt = {
+  gateThr:v=>'−'+Math.abs(v)+' dB', gateRatio:v=>(+v).toFixed(1)+':1',
+  hpf:v=>v+' Hz', cut300:v=>(v>0?'+':'−')+Math.abs(v)+' dB', pres4k:v=>'+'+v+' dB', air:v=>'+'+(+v).toFixed(1)+' dB',
+  cThr:v=>'−'+Math.abs(v)+' dB', cRatio:v=>(+v).toFixed(1)+':1', cAtk:v=>v+' ms', cRel:v=>v+' ms',
+  dsFreq:v=>v+' Hz', dsThr:v=>(+v/1000).toFixed(2), dsRatio:v=>(+v).toFixed(1)+':1'
+};
+document.querySelectorAll('input[type=range]').forEach(r=>{
+  r.addEventListener('input', ()=>{ $(r.id+'V').textContent = fmt[r.id](r.value); applyAll(); });
+});
+
+$('btnPreset').onclick = ()=>{
+  const p = {gateThr:-50,gateRatio:2,hpf:90,cut300:-2.5,pres4k:2.5,air:2,cThr:-18,cRatio:3.5,cAtk:7,cRel:120,dsFreq:6500,dsThr:60,dsRatio:3};
+  for(const k in p){ $(k).value=p[k]; $(k+'V').textContent=fmt[k](p[k]); }
+  applyAll();
+};
+
+$('monitor').onchange = e=>{
+  monitorOn = e.target.checked;
+  $('warn').style.display = monitorOn ? 'block' : 'none';
+  if(!ctx) return;
+  if(monitorOn) nodes.lim.connect(ctx.destination);
+  else try{ nodes.lim.disconnect(ctx.destination); }catch(_){}
+};
+
+// ---------- Gravação ----------
+$('btnRec').onclick = async ()=>{
+  try{
+    $('err').style.display='none';
+    await initAudio();
+    if(ctx.state==='suspended') await ctx.resume();
+    nodes.rec.port.postMessage('start');
+    recording = true; t0 = Date.now();
+    $('btnRec').style.display='none'; $('btnStop').style.display='inline-block';
+    $('status').textContent='Gravando…';
+    $('btnDl').style.display='none'; $('player').style.display='none';
+    timerInt = setInterval(()=>{ const s=Math.floor((Date.now()-t0)/1000); $('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); },500);
+  }catch(e){
+    $('err').textContent='Erro: '+(e.name==='NotAllowedError'?'permissão de microfone negada — permita o acesso e recarregue.':e.message)+' (requer HTTPS ou localhost)';
+    $('err').style.display='block';
+  }
+};
+
+$('btnStop').onclick = ()=>{
+  recording=false; clearInterval(timerInt);
+  $('btnRec').style.display='inline-block'; $('btnStop').style.display='none';
+  $('status').textContent='Processando…';
+  nodes.rec.port.onmessage = e=>{
+    if(e.data.type!=='data') return;
+    let samples=[];
+    e.data.buf.forEach(c=>samples.push(...c));
+    const mono = Float32Array.from(samples);
+    let peak=0; for(let i=0;i<mono.length;i++) peak=Math.max(peak,Math.abs(mono[i]));
+    if($('normalize').checked && peak>0){ const g=dbToLin(-1)/peak; for(let i=0;i<mono.length;i++) mono[i]*=g; }
+    const wav = encodeWAV(mono, ctx.sampleRate);
+    const url = URL.createObjectURL(wav);
+    $('player').src=url; $('player').style.display='block';
+    $('btnDl').href=url; $('btnDl').style.display='inline-block';
+    $('status').textContent='Pronto para gravar. Áudio processado disponível abaixo.';
+  };
+  nodes.rec.port.postMessage('stop');
+};
+
+function encodeWAV(samples, sr){
+  const buf = new ArrayBuffer(44 + samples.length*2), v = new DataView(buf);
+  const wStr=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  wStr(0,'RIFF'); v.setUint32(4,36+samples.length*2,true); wStr(8,'WAVEfmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  wStr(36,'data'); v.setUint32(40,samples.length*2,true);
+  let off=44;
+  for(let i=0;i<samples.length;i++){ let s=Math.max(-1,Math.min(1,samples[i])); v.setInt16(off, s<0?s*0x8000:s*0x7FFF, true); off+=2; }
+  return new Blob([buf],{type:'audio/wav'});
+}
+</script>
+</body>
+</html>
